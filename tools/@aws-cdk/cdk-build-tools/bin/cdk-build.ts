@@ -19,6 +19,11 @@ async function main() {
       desc: 'Specify a different tsc executable',
       defaultDescription: 'tsc provided by node dependencies',
     })
+    .option('swc', {
+      type: 'string',
+      desc: 'Specify a different swc executable',
+      defaultDescription: 'swc provided by node dependencies',
+    })
     .option('eslint', {
       type: 'string',
       desc: 'Specify a different eslint executable',
@@ -54,7 +59,7 @@ async function main() {
     await shell([gen], { timers, env });
   }
 
-  const overrides: CompilerOverrides = { eslint: args.eslint, jsii: args.jsii, tsc: args.tsc };
+  const overrides: CompilerOverrides = { eslint: args.eslint, jsii: args.jsii, tsc: args.tsc, swc: args.swc };
   await compileCurrentPackage(options, timers, overrides);
   if (!args['skip-lint']) {
     await lintCurrentPackage(options, timers, { ...overrides, fix: args.fix });

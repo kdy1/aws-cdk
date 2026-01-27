@@ -91,10 +91,11 @@ export interface CompilerOverrides {
   eslint?: string;
   jsii?: string;
   tsc?: string;
+  swc?: string;
 }
 
 /**
- * Return the compiler for this package (either tsc or jsii)
+ * Return the compiler for this package (either swc, tsc or jsii)
  */
 export function packageCompiler(compilers: CompilerOverrides, options?: CDKBuildOptions): string[] {
   if (isJsii()) {
@@ -109,7 +110,41 @@ export function packageCompiler(compilers: CompilerOverrides, options?: CDKBuild
     }
     return [compilers.jsii || require.resolve('jsii/bin/jsii'), ...args];
   } else {
-    return [compilers.tsc || require.resolve('typescript/bin/tsc'), '--build'];
+    // Use SWC instead of tsc for faster compilation
+    const swcPath = compilers.swc || require.resolve('@swc/core');
+    const swcrcPath = configFilePath('.swcrc');
+    return ['node', '-e', `
+      const swc = require('${swcPath}');
+      const fs = require('fs');
+      const path = require('path');
+      const glob = require('glob');
+
+      const config = JSON.parse(fs.readFileSync('${swcrcPath}', 'utf8'));
+      const tsFiles = glob.sync('**/*.ts', {
+        cwd: process.cwd(),
+        ignore: ['node_modules/**', 'test/**', '**/*.d.ts', 'lib/**']
+      });
+
+      Promise.all(tsFiles.map(async (file) => {
+        const source = fs.readFileSync(file, 'utf8');
+        const result = await swc.transform(source, {
+          ...config,
+          filename: file
+        });
+        const outFile = file.replace(/\\.ts$/, '.js').replace(/^src\\//, 'lib/');
+        const outDir = path.dirname(outFile);
+        if (!fs.existsSync(outDir)) {
+          fs.mkdirSync(outDir, { recursive: true });
+        }
+        fs.writeFileSync(outFile, result.code);
+        if (result.map) {
+          fs.writeFileSync(outFile + '.map', result.map);
+        }
+      })).then(() => console.log('Build complete')).catch(err => {
+        console.error(err);
+        process.exit(1);
+      });
+    `];
   }
 }
 

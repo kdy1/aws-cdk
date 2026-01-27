@@ -47,6 +47,7 @@
   "main": "lib/index.js",
   "dependencies": {
     "@aws-cdk/eslint-config": "0.0.0",
+    "@swc/core": "1.15.10",
     "awslint": "0.0.0",
     "chalk": "^4",
     "fs-extra": "^9.1.0",
